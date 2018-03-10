@@ -7,3 +7,13 @@
 *.vcxproj
 *.filters
 *.user
+*.exe
+*.ilk
+*.pdb
+*.tlog
+*.idb
+*.obj
+*.cache
+*.log
+*.lastbuildstate
+*.manifest
