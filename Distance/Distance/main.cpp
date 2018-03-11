@@ -314,32 +314,57 @@ void getDistance(){
 		}
 
 	}
-	ofstream fout("F:/answer.txt",ios_base::out);
-	fout<<cameraMat<<endl;
-	fout<<distMat<<endl;
-	fout.close();
     Mat mapx = Mat(row,col,CV_32FC1);  
     Mat mapy = Mat(row,col,CV_32FC1);  
     Mat R = Mat::eye(3,3,CV_32F);  
 	//求解映射矩阵
 	initUndistortRectifyMap(cameraMat,distMat,R,cameraMat,Size(col,row),CV_32FC1,mapx,mapy);
+	//矫正图片
+	Mat src,newSrc,gray;
+	src = imread("F:/TestData/distance/0.jpg",1);  
+	newSrc = src.clone();  
+	remap(src,newSrc,mapx, mapy, INTER_LINEAR);         
+	cvtColor(newSrc,gray,CV_BGR2GRAY);
 
-
-	Mat src,newSrc;
-	fin.close();
-	fin.open("F:/TestData/ChessFile.txt",ios_base::in);
-	string filename;
-	int pos;
-	while(getline(fin,filename))
+	//寻找四个亚像素角点	
+	vector<Point2f> image_points;
+	Size board_size(6,8);
+    if (0 == findChessboardCorners(newSrc,board_size,image_points))  
+    {             
+        cout<<"can not find chessboard corners!\n"; //找不到角点  
+        exit(1);  
+    }   
+    else   
     {  
+            
+        cvtColor(src,gray,CV_RGB2GRAY);  
+        /* 亚像素精确化 */  
+        find4QuadCornerSubpix(gray,image_points,Size(5,5));   
+    }
 
-        src = imread(filename);  
-        newSrc = src.clone();  
-        //另一种不需要转换矩阵的方式  
-        //undistort(imageSource,newimage,cameraMatrix,distCoeffs);  
-        remap(src,newSrc,mapx, mapy, INTER_LINEAR);         
-		pos=filename.find('.');
-		filename.insert(pos,"_t");
-        imwrite(filename,newSrc);  
-    }  
+
+
+	Point2f virtualQuad[4], realQuad[4];
+	Mat warp_matrix(3,3,CV_32FC1,Scalar(0));
+
+	virtualQuad[0]=image_points.at(3*6+2);//左下
+	virtualQuad[1]=image_points.at(3*6+3);//左上
+	virtualQuad[2]=image_points.at(4*6+2);//右下
+	virtualQuad[3]=image_points.at(4*6+3);//右上
+
+	realQuad[0]=Point2f(-20,-20);
+	realQuad[1]=Point2f(-20,20);
+	realQuad[2]=Point2f(20,-20);
+	realQuad[3]=Point2f(20,20);
+
+	warp_matrix=getPerspectiveTransform(virtualQuad,realQuad);
+	Mat myMat(3,3,CV_32FC1,Scalar(0));
+
+	warpPerspective(newSrc,src,warp_matrix,Size(col,row));
+	imshow("img",src);
+	waitKey(0);
+	ofstream fout("F:/answer.txt",ios_base::trunc);
+	fout<<warp_matrix<<endl;
+	fout.close();
+
 }
