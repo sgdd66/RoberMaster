@@ -4,6 +4,7 @@ void calibration();
 void getDistance();
 int main(int *argc,char** argv){
 	getDistance();
+	//calibration();
 	return 0;
 }
 
@@ -180,7 +181,10 @@ void calibration(){
 
     //保存定标结果      
     std::cout<<"开始保存定标结果………………"<<endl;         
-    Mat rotation_matrix = Mat(3,3,CV_32FC1, Scalar::all(0)); /* 保存每幅图像的旋转矩阵 */  
+    Mat rotation_matrix = Mat(3,3,CV_32FC1, Scalar::all(0)); /* 保存每幅图像的旋转矩阵 */ 
+	fout<<"图片尺寸："<<endl;
+	fout<<"row="<<image_size.height<<endl;
+	fout<<"width="<<image_size.width<<endl;
     fout<<"相机内参数矩阵："<<endl;     
     fout<<cameraMat<<endl<<endl;     
     fout<<"畸变系数：\n";     
@@ -207,10 +211,10 @@ void calibration(){
     Mat R = Mat::eye(3,3,CV_32F);  
 	//求解映射矩阵
 	initUndistortRectifyMap(cameraMat,distMat,R,cameraMat,image_size,CV_32FC1,mapx,mapy);
-	fout<<"mapx="<<endl;
-	fout<<mapx<<endl<<endl;
-	fout<<"mapy="<<endl;
-	fout<<mapy<<endl<<endl;
+	//fout<<"mapx="<<endl;
+	//fout<<mapx<<endl<<endl;
+	//fout<<"mapy="<<endl;
+	//fout<<mapy<<endl<<endl;
 
     std::cout<<"保存矫正图像"<<endl;  
 
@@ -239,9 +243,103 @@ void calibration(){
 }  
 
 void getDistance(){
-	ifstream fin("F:/TestData/distance/map.txt",ios_base::in);
-	string dataStr;
-	while(getline(fin,dataStr)){
-		printf(dataStr.c_str());
+	//读取标定文件
+	ifstream fin("F:/TestData/distance/CaliberationResult.txt",ios_base::in);   
+	string fileStr;
+	//获取标定数据
+	int row,col;
+	Mat cameraMat(3,3,CV_32FC1,Scalar(0));
+	Mat distMat(1,5,CV_32FC1,Scalar(0));
+	string tempStr;
+	
+	string regStr;
+	regex regformat;
+	smatch result;
+	while(getline(fin,fileStr)){
+
+		regStr="row=(\\d*)";
+		regformat.assign(regStr,regex::icase);
+		if(regex_match(fileStr,result,regformat)){
+			tempStr=result[1];
+			row=atoi(tempStr.c_str());
+		}
+
+		regStr="width=(\\d*)";
+		regformat.assign(regStr,regex::icase);
+		if(regex_match(fileStr,result,regformat)){
+			tempStr=result[1];
+			col=atoi(tempStr.c_str());
+		}
+
+		if(fileStr=="相机内参数矩阵："){
+			getline(fin,fileStr);
+			regStr="\\[(\\d+\\.\\d*).*?(\\d+\\.\\d*);";
+			regformat.assign(regStr,regex::icase);
+			if(regex_match(fileStr,result,regformat)){
+				tempStr=result[1];
+				cameraMat.at<float>(0,0)=atof(tempStr.c_str());
+				tempStr=result[2];
+				cameraMat.at<float>(0,2)=atof(tempStr.c_str());				
+			}
+			getline(fin,fileStr);
+			regStr=".*?(\\d+\\.\\d*), (\\d+\\.\\d*);";
+			regformat.assign(regStr,regex::icase);
+			if(regex_match(fileStr,result,regformat)){
+				tempStr=result[1];
+				cameraMat.at<float>(1,1)=atof(tempStr.c_str());
+				tempStr=result[2];
+				cameraMat.at<float>(1,2)=atof(tempStr.c_str());				
+			}
+
+			cameraMat.at<float>(2,2)=1.0;
+		}
+
+		if(fileStr=="畸变系数："){
+			getline(fin,fileStr);
+			regStr="\\[(-*\\d*\\.\\d*), (-*\\d*\\.\\d*), (-*\\d*\\.\\d*), (-*\\d*\\.\\d*), (-*\\d*\\.\\d*)\\]";
+			regformat.assign(regStr,regex::icase);
+			if(regex_match(fileStr,result,regformat)){
+				tempStr=result[1];
+				distMat.at<float>(0,0)=atof(tempStr.c_str());
+				tempStr=result[2];
+				distMat.at<float>(0,1)=atof(tempStr.c_str());
+				tempStr=result[3];
+				distMat.at<float>(0,2)=atof(tempStr.c_str());
+				tempStr=result[4];
+				distMat.at<float>(0,3)=atof(tempStr.c_str());
+				tempStr=result[5];
+				distMat.at<float>(0,4)=atof(tempStr.c_str());
+			}
+			break;
+		}
+
 	}
+	ofstream fout("F:/answer.txt",ios_base::out);
+	fout<<cameraMat<<endl;
+	fout<<distMat<<endl;
+	fout.close();
+    Mat mapx = Mat(row,col,CV_32FC1);  
+    Mat mapy = Mat(row,col,CV_32FC1);  
+    Mat R = Mat::eye(3,3,CV_32F);  
+	//求解映射矩阵
+	initUndistortRectifyMap(cameraMat,distMat,R,cameraMat,Size(col,row),CV_32FC1,mapx,mapy);
+
+
+	Mat src,newSrc;
+	fin.close();
+	fin.open("F:/TestData/ChessFile.txt",ios_base::in);
+	string filename;
+	int pos;
+	while(getline(fin,filename))
+    {  
+
+        src = imread(filename);  
+        newSrc = src.clone();  
+        //另一种不需要转换矩阵的方式  
+        //undistort(imageSource,newimage,cameraMatrix,distCoeffs);  
+        remap(src,newSrc,mapx, mapy, INTER_LINEAR);         
+		pos=filename.find('.');
+		filename.insert(pos,"_t");
+        imwrite(filename,newSrc);  
+    }  
 }
