@@ -352,10 +352,10 @@ void getDistance(){
 	virtualQuad[2]=image_points.at(4*6+2);//сроб
 	virtualQuad[3]=image_points.at(4*6+3);//срио
 
-	realQuad[0]=Point2f(-20,-20);
-	realQuad[1]=Point2f(-20,20);
-	realQuad[2]=Point2f(20,-20);
-	realQuad[3]=Point2f(20,20);
+	realQuad[0]=Point2f(col/2-40,row/2+40);
+	realQuad[1]=Point2f(col/2-40,row/2-40);
+	realQuad[2]=Point2f(col/2+40,row/2+40);
+	realQuad[3]=Point2f(col/2+40,row/2-40);
 
 	warp_matrix=getPerspectiveTransform(virtualQuad,realQuad);
 	Mat myMat(3,3,CV_32FC1,Scalar(0));
