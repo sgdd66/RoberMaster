@@ -1,8 +1,13 @@
 #include "stdafx.h"
+
+#include "Position.h"
 void takePhoto();
 void calibration();
 void getDistance();
+void getPerspectiveTransform();
+void test();
 int main(int *argc,char** argv){
+	//test();
 	getDistance();
 	//calibration();
 	return 0;
@@ -242,7 +247,7 @@ void calibration(){
     return ;  
 }  
 
-void getDistance(){
+void getPerspectiveTransform(){
 	//读取标定文件
 	ifstream fin("F:/TestData/distance/CaliberationResult.txt",ios_base::in);   
 	string fileStr;
@@ -367,4 +372,68 @@ void getDistance(){
 	fout<<warp_matrix<<endl;
 	fout.close();
 
+}
+
+
+void getDistance(){
+	CPosition position;
+	char filePath[100];
+	sprintf(filePath,"F:/TestData/CalibrationResult.txt");
+
+	position.getCameraParam(filePath);
+
+	Mat src,gray;
+	src = imread("F:/TestData/distance/0.jpg",1);  
+	cvtColor(src,gray,CV_BGR2GRAY);
+
+	//寻找四个亚像素角点	
+	vector<Point2f> image_points;
+	Size board_size(6,8);
+    if (0 == findChessboardCorners(src,board_size,image_points))  
+    {             
+        cout<<"can not find chessboard corners!\n"; //找不到角点  
+        exit(1);  
+    }   
+    else   
+    {          
+        cvtColor(src,gray,CV_RGB2GRAY);  
+        find4QuadCornerSubpix(gray,image_points,Size(5,5));   
+    }
+
+
+
+	vector<Point2f> virtualQuad;
+	virtualQuad.reserve(4);
+
+
+	virtualQuad.push_back(image_points.at(2*6+1));//左下
+	virtualQuad.push_back(image_points.at(2*6+4));//左上
+	virtualQuad.push_back(image_points.at(5*6+4));//右上
+	virtualQuad.push_back(image_points.at(5*6+1));//右下
+	for(int i=0;i<4;i++){
+		circle(src,virtualQuad.at(i),4,Scalar(255,0,0));
+	}
+	imshow("img",src);
+
+
+
+	position.getPosition(virtualQuad,12,12);
+
+	cout<<position.distance<<endl;
+	cout<<position.traMat<<endl;
+	cout<<position.rotAngle<<endl;
+	waitKey(0);
+
+
+}
+
+void test(){
+	CPosition position;
+	char filePath[100];
+	//sprintf(filePath,"F:/Test");
+	//position.getChessPhoto(filePath,1);
+	sprintf(filePath,"F:/TestData");
+	position.calibration(filePath,Size(6,8),Size(40,40));
+
+	position.getCameraParam(filePath);
 }
